@@ -79,12 +79,12 @@
   }
 
   .quiz-card.correct {
-    @apply bg-green-50 border-green-200;
+    @apply bg-emerald-50 border-emerald-200;
     animation: bounce-in 0.5s ease-out;
   }
 
   .quiz-card.incorrect {
-    @apply bg-red-50 border-red-200 animate-pulse;
+    @apply bg-rose-50 border-rose-200 animate-pulse;
   }
 }
 
