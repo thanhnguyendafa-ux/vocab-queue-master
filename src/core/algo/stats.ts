@@ -1,6 +1,6 @@
 // Core statistics and algorithm functions for Vocab Queue Master
 
-import { VocabItem } from '../models'
+import { VocabItem, Settings, FocusFilter, ItemStats } from '../models'
 
 /**
  * Calculate smoothed success rate (SR_smooth)
@@ -123,4 +123,144 @@ export function getMasteryLevel(mastery: number): 'low' | 'medium' | 'high' {
   if (mastery < 0.6) return 'low'
   if (mastery < 0.8) return 'medium'
   return 'high'
+}
+
+/**
+ * Filter vocabulary items based on criteria and focus filters
+ */
+export function filterItems(
+  items: VocabItem[],
+  settings: Settings,
+  filters: FocusFilter[],
+  logic: 'AND' | 'OR' = 'OR'
+): VocabItem[] {
+  if (filters.length === 0) return items
+
+  return items.filter(item => {
+    if (logic === 'AND') {
+      return filters.every(filter => matchesFilter(item, filter, settings))
+    } else {
+      return filters.some(filter => matchesFilter(item, filter, settings))
+    }
+  })
+}
+
+/**
+ * Check if an item matches a specific filter
+ */
+function matchesFilter(item: VocabItem, filter: FocusFilter, settings: Settings): boolean {
+  if (!filter.enabled) return false
+
+  const days = daysSince(item.lastReviewedAt)
+  const mastery = calculateMastery(item, settings.halfLifeDays, settings.guessBaseline)
+  const successRate = srSmooth(item)
+
+  switch (filter.type) {
+    case 'overdue':
+      return days >= (filter.threshold || settings.overdueDays)
+
+    case 'low-sr':
+      return successRate <= (filter.threshold || settings.srMin)
+
+    case 'high-decay':
+      return mastery <= (filter.threshold || settings.decayMin)
+
+    case 'new':
+      return item.passed1 === 0 && item.passed2 === 0
+
+    case 'failed':
+      return item.failed > 0
+
+    default:
+      return false
+  }
+}
+
+/**
+ * Build a focused study queue based on filters and settings
+ */
+export function buildFocusQueue(
+  items: VocabItem[],
+  settings: Settings,
+  filters: FocusFilter[],
+  maxItems = 20
+): VocabItem[] {
+  const filteredItems = filterItems(items, settings, filters, 'OR')
+
+  if (filteredItems.length === 0) return []
+
+  // Sort by urgency (most urgent first)
+  const sortedItems = filteredItems.sort((a, b) => {
+    const urgencyA = calculateUrgency(a, {
+      halfLifeDays: settings.halfLifeDays,
+      guessBaseline: settings.guessBaseline,
+      timeWeight: settings.timeWeight,
+      srWeight: settings.srWeight,
+      decayWeight: settings.decayWeight
+    })
+
+    const urgencyB = calculateUrgency(b, {
+      halfLifeDays: settings.halfLifeDays,
+      guessBaseline: settings.guessBaseline,
+      timeWeight: settings.timeWeight,
+      srWeight: settings.srWeight,
+      decayWeight: settings.decayWeight
+    })
+
+    return urgencyB - urgencyA
+  })
+
+  return sortedItems.slice(0, maxItems)
+}
+
+/**
+ * Get detailed statistics for a vocabulary item
+ */
+export function getItemStatistics(item: VocabItem, settings: Settings): ItemStats {
+  const mastery = calculateMastery(item, settings.halfLifeDays, settings.guessBaseline)
+  const successRate = srSmooth(item)
+  const days = daysSince(item.lastReviewedAt)
+  const totalAttempts = item.passed1 + item.passed2 + item.failed
+
+  return {
+    mastery,
+    successRate,
+    decay: mastery, // Simplified - in full implementation, this would be separate
+    urgency: calculateUrgency(item, {
+      halfLifeDays: settings.halfLifeDays,
+      guessBaseline: settings.guessBaseline,
+      timeWeight: settings.timeWeight,
+      srWeight: settings.srWeight,
+      decayWeight: settings.decayWeight
+    }),
+    totalAttempts,
+    daysSinceLastReview: days,
+    isOverdue: days >= settings.overdueDays
+  }
+}
+
+/**
+ * Get filter sets for different study scenarios
+ */
+export function getFilterSets(): Record<string, FocusFilter[]> {
+  return {
+    'overdue-review': [
+      { type: 'overdue', enabled: true, threshold: 7 }
+    ],
+    'difficult-items': [
+      { type: 'low-sr', enabled: true, threshold: 0.6 },
+      { type: 'high-decay', enabled: true, threshold: 0.6 }
+    ],
+    'new-items': [
+      { type: 'new', enabled: true }
+    ],
+    'failed-items': [
+      { type: 'failed', enabled: true }
+    ],
+    'comprehensive': [
+      { type: 'overdue', enabled: true, threshold: 7 },
+      { type: 'low-sr', enabled: true, threshold: 0.6 },
+      { type: 'failed', enabled: true }
+    ]
+  }
 }

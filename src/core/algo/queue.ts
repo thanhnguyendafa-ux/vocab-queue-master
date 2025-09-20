@@ -180,14 +180,14 @@ export function calculateSessionStats(
   session: StudySession,
   questions: QuizQuestion[] = []
 ): {
-  accuracy: number
-  averageResponseTime: number
   totalQuestions: number
   correctAnswers: number
-  streakCurrent: number
-  streakBest: number
-  timeSpent: number
-  questionsPerMinute: number
+  accuracy: number
+  averageResponseTime: number
+  itemsCompleted: number
+  itemsRemaining: number
+  progress: number
+  timeElapsed: number
 } {
   const totalQuestions = session.totalQuestions
   const correctAnswers = session.correctAnswers
@@ -202,41 +202,24 @@ export function calculateSessionStats(
     ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length
     : 0
   
-  // Calculate streaks
-  let currentStreak = 0
-  let bestStreak = 0
-  let tempStreak = 0
+  // Calculate progress
+  const itemsCompleted = session.originalItems.length - session.items.length
+  const itemsRemaining = session.items.length
+  const progress = session.originalItems.length > 0 
+    ? (itemsCompleted / session.originalItems.length) * 100 
+    : 0
   
-  questions.forEach(q => {
-    if (q.isCorrect) {
-      tempStreak++
-      bestStreak = Math.max(bestStreak, tempStreak)
-    } else {
-      tempStreak = 0
-    }
-  })
-  
-  // Current streak is the streak at the end
-  for (let i = questions.length - 1; i >= 0; i--) {
-    if (questions[i].isCorrect) {
-      currentStreak++
-    } else {
-      break
-    }
-  }
-  
-  const timeSpent = Date.now() - session.startedAt
-  const questionsPerMinute = timeSpent > 0 ? (totalQuestions / (timeSpent / 60000)) : 0
+  const timeElapsed = Date.now() - session.startedAt
   
   return {
-    accuracy,
-    averageResponseTime,
     totalQuestions,
     correctAnswers,
-    streakCurrent: currentStreak,
-    streakBest: bestStreak,
-    timeSpent,
-    questionsPerMinute
+    accuracy,
+    averageResponseTime,
+    itemsCompleted,
+    itemsRemaining,
+    progress,
+    timeElapsed
   }
 }
 
