@@ -2,10 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Define your CSS variables and APPLY inside a @layer,
+   so Tailwind can resolve utilities like bg-background */
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
@@ -47,12 +49,11 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 94.1%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
+  
   body {
     @apply bg-background text-foreground;
   }
@@ -76,9 +77,17 @@
 }
 
 .quiz-card.correct {
-  @apply bg-success-50 border-success-200 animate-bounce-in;
+  @apply bg-success-50 border-success-200;
+  animation: bounce-in 0.5s ease-out;
 }
 
 .quiz-card.incorrect {
   @apply bg-danger-50 border-danger-200 animate-pulse;
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
 }
