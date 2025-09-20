@@ -59,30 +59,33 @@
   }
 }
 
-/* Custom animations for vocabulary learning */
-.mastery-high {
-  @apply bg-success-100 border-success-300 text-success-800;
-}
+/* Component-level utility compositions */
+@layer components {
+  /* Custom animations for vocabulary learning */
+  .mastery-high {
+    @apply bg-green-100 border-green-300 text-green-800;
+  }
 
-.mastery-medium {
-  @apply bg-warning-100 border-warning-300 text-warning-800;
-}
+  .mastery-medium {
+    @apply bg-yellow-100 border-yellow-300 text-yellow-800;
+  }
 
-.mastery-low {
-  @apply bg-danger-100 border-danger-300 text-danger-800;
-}
+  .mastery-low {
+    @apply bg-red-100 border-red-300 text-red-800;
+  }
 
-.quiz-card {
-  @apply transition-all duration-300 ease-in-out transform hover:scale-105;
-}
+  .quiz-card {
+    @apply transition-all duration-300 ease-in-out transform hover:scale-105;
+  }
 
-.quiz-card.correct {
-  @apply bg-success-50 border-success-200;
-  animation: bounce-in 0.5s ease-out;
-}
+  .quiz-card.correct {
+    @apply bg-green-50 border-green-200;
+    animation: bounce-in 0.5s ease-out;
+  }
 
-.quiz-card.incorrect {
-  @apply bg-danger-50 border-danger-200 animate-pulse;
+  .quiz-card.incorrect {
+    @apply bg-red-50 border-red-200 animate-pulse;
+  }
 }
 
 @keyframes bounce-in {
