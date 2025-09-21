@@ -16,23 +16,14 @@ import {
   DEFAULT_MODULE_SETTINGS
 } from '../core/models'
 import { 
-  calculateMastery, 
   calculateUrgency, 
   filterItems,
-  getFilterSets,
   buildFocusQueue,
   getItemStatistics
 } from '../core/algo/stats'
 import {
-  processAnswer,
   createInitialQueue,
-  getSessionProgress,
-  isSessionComplete,
-  calculateSessionStats,
-  handleSessionInterruption,
-  saveQueueState,
-  loadQueueState,
-  clearQueueState
+  calculateSessionStats
 } from '../core/algo/queue'
 
 interface QuizStore {
@@ -254,198 +245,222 @@ export const useQuizStore = create<QuizStore>()(
 
       // Session management actions
       startSession: (projectId, options = {}) => {
-        const state = get()
-        const project = state.projects.find(p => p.id === projectId)
-        if (!project) return
-
-        const projectItems = state.items.filter(item => 
-          project.items.includes(item.id)
-        )
-
-        // Apply focus filters if specified
-        let sessionItems = projectItems
-        if (options.focusFilters && options.focusFilters.length > 0) {
-          sessionItems = buildFocusQueue(
-            projectItems,
-            state.settings,
-            options.focusFilters,
-            options.maxItems || 20
-          )
-        } else if (options.maxItems && sessionItems.length > options.maxItems) {
-          // Sort by urgency and take top items
-          const urgencyCalculator = (item: VocabItem) => calculateUrgency(item, {
-            halfLifeDays: state.settings.halfLifeDays,
-            guessBaseline: state.settings.guessBaseline,
-            timeWeight: state.settings.focusThresholds.w_t,
-            srWeight: state.settings.focusThresholds.w_s,
-            decayWeight: state.settings.focusThresholds.w_d
-          })
-          
-          sessionItems = createInitialQueue(sessionItems, urgencyCalculator)
-            .slice(0, options.maxItems)
-        } else {
-          // Create initial queue with urgency-based ordering
-          const urgencyCalculator = (item: VocabItem) => calculateUrgency(item, {
-            halfLifeDays: state.settings.halfLifeDays,
-            guessBaseline: state.settings.guessBaseline,
-            timeWeight: state.settings.focusThresholds.w_t,
-            srWeight: state.settings.focusThresholds.w_s,
-            decayWeight: state.settings.focusThresholds.w_d
-          })
-          
-          sessionItems = createInitialQueue(sessionItems, urgencyCalculator)
-        }
-
-        const newSession: StudySession = {
-          id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          projectId,
-          items: [...sessionItems],
-          originalItems: [...sessionItems],
-          currentIndex: 0,
-          completed: false,
-          startedAt: Date.now(),
-          quitCount: 0,
-          totalQuestions: 0,
-          correctAnswers: 0,
-          settings: {
-            modules: options.modules || project.modules,
-            maxItems: options.maxItems || sessionItems.length,
-            focusMode: options.focusFilters
-          }
-        }
-
-        set(() => ({
-          currentSession: newSession,
-          currentQuestions: [],
-          completedItems: []
-        }))
-      },
-
-      processAnswer: (questionId, answer, isCorrect, responseTime) => {
         set((state) => {
-          if (!state.currentSession) return state
+          // Find the project
+          const project = state.projects.find(p => p.id === projectId);
+          if (!project) return state;
 
-          const question = state.currentQuestions.find(q => q.id === questionId)
-          if (!question) return state
+          // Get items for the project
+          let sessionItems = state.items.filter(item => 
+            project.items.includes(item.id)
+          );
 
-          // Update question with answer
-          const updatedQuestions = state.currentQuestions.map(q =>
-            q.id === questionId
-              ? { ...q, userAnswer: answer, isCorrect, answeredAt: Date.now(), responseTime }
-              : q
-          )
-
-          // Process the answer using queue algorithm
-          const currentItem = state.currentSession.items.find(item => item.id === question.item.id)
-          if (!currentItem) return state
-
-          const { updatedItem, newQueue } = processAnswer(
-            currentItem,
-            isCorrect,
-            state.currentSession.items
-          )
-
-          // Update the item in the main items array
-          const updatedItems = state.items.map(item =>
-            item.id === updatedItem.id ? updatedItem : item
-          )
-
-          // Update completed items if item was removed from queue
-          let updatedCompletedItems = state.completedItems
-          if (!newQueue.find(item => item.id === updatedItem.id) && updatedItem.passed2 > 0) {
-            updatedCompletedItems = [...state.completedItems, updatedItem]
+          // Apply focus filters if any
+          if (options.focusFilters && options.focusFilters.length > 0) {
+            sessionItems = filterItems(
+              sessionItems,
+              state.settings,
+              options.focusFilters,
+              'OR'
+            );
           }
 
-          // Check if session is complete
-          const sessionComplete = isSessionComplete(
-            state.currentSession.originalItems,
-            newQueue,
-            updatedCompletedItems
-          )
-
-          const updatedSession: StudySession = {
-            ...state.currentSession,
-            items: newQueue,
-            currentIndex: Math.min(state.currentSession.currentIndex, newQueue.length - 1),
-            totalQuestions: state.currentSession.totalQuestions + 1,
-            correctAnswers: state.currentSession.correctAnswers + (isCorrect ? 1 : 0),
-            completed: sessionComplete,
-            completedAt: sessionComplete ? Date.now() : undefined
+          // Limit number of items if specified
+          if (options.maxItems && sessionItems.length > options.maxItems) {
+            sessionItems = sessionItems.slice(0, options.maxItems);
           }
+
+          // Create initial queue based on urgency
+          if (sessionItems.length > 0) {
+            const urgencyCalculator = (item: VocabItem) => calculateUrgency(item, {
+              halfLifeDays: state.settings.halfLifeDays,
+              guessBaseline: state.settings.guessBaseline,
+              timeWeight: state.settings.focusThresholds.w_t,
+              srWeight: state.settings.focusThresholds.w_s,
+              decayWeight: state.settings.focusThresholds.w_d
+            });
+            
+            sessionItems = createInitialQueue(sessionItems, urgencyCalculator);
+          }
+
+          const newSession: StudySession = {
+            id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            projectId,
+            items: [...sessionItems],
+            originalItems: [...sessionItems],
+            currentIndex: 0,
+            completed: false,
+            startedAt: Date.now(),
+            quitCount: 0,
+            totalQuestions: sessionItems.length,
+            correctAnswers: 0,
+            settings: {
+              modules: options.modules || [],
+              maxItems: options.maxItems || 20,
+              focusMode: options.focusFilters || []
+            }
+          };
 
           return {
-            items: updatedItems,
-            currentSession: sessionComplete ? null : updatedSession,
-            sessionHistory: sessionComplete 
-              ? [...state.sessionHistory, updatedSession]
-              : state.sessionHistory,
-            currentQuestions: updatedQuestions,
-            completedItems: updatedCompletedItems
-          }
-        })
-      },
-
-      quitSession: () => {
-        set((state) => {
-          if (!state.currentSession) return state
-
-          const { updatedSession, shouldSave } = handleSessionInterruption(
-            state.currentSession,
-            state.currentSession.items,
-            state.completedItems,
-            'quit'
-          )
-
-          return {
-            currentSession: null,
-            sessionHistory: [...state.sessionHistory, updatedSession],
+            currentSession: newSession,
             currentQuestions: [],
             completedItems: []
-          }
-        })
+          };
+        });
       },
 
+      // Process user answer for a question
+      processAnswer: (questionId, answer, isCorrect, responseTime) => {
+        set((state) => {
+          if (!state.currentSession) return state;
+          
+          const currentQuestion = state.currentQuestions.find(q => q.id === questionId);
+          if (!currentQuestion) return state;
+
+          // Update question with answer
+          const updatedQuestion: QuizQuestion = {
+            ...currentQuestion,
+            userAnswer: answer,
+            isCorrect,
+            answeredAt: Date.now(),
+            responseTime
+          };
+
+          // Calculate new correct answers count
+          const newCorrectAnswers = isCorrect 
+            ? state.currentSession.correctAnswers + 1 
+            : state.currentSession.correctAnswers;
+
+          // Check if session is complete
+          const isComplete = newCorrectAnswers >= state.currentSession.totalQuestions;
+
+          // Create updated session without completedAt if not complete
+          const updatedSession: StudySession = isComplete
+            ? {
+                ...state.currentSession,
+                correctAnswers: newCorrectAnswers,
+                completed: true,
+                completedAt: Date.now(),
+                updatedAt: Date.now()
+              }
+            : {
+                ...state.currentSession,
+                correctAnswers: newCorrectAnswers,
+                completed: false,
+                updatedAt: Date.now()
+              };
+
+          // Update item stats
+          const updatedItems = state.items.map(item => {
+            if (item.id !== currentQuestion.item.id) return item;
+            
+            return {
+              ...item,
+              passed1: isCorrect ? item.passed1 + 1 : item.passed1,
+              failed: isCorrect ? item.failed : item.failed + 1,
+              lastReviewedAt: Date.now(),
+              updatedAt: Date.now()
+            };
+          });
+
+          // Update completed items
+          const completedItems = isCorrect 
+            ? [...state.completedItems, currentQuestion.item]
+            : state.completedItems;
+
+          // Return updated state
+          return {
+            items: updatedItems,
+            completedItems,
+            currentSession: updatedSession,
+            currentQuestions: state.currentQuestions.map(q => 
+              q.id === questionId ? updatedQuestion : q
+            )
+          };
+        });
+      },
+
+      // Quit current session
+      quitSession: () => {
+        set((state) => {
+          if (!state.currentSession) return state;
+          
+          const updatedSession: StudySession = {
+            ...state.currentSession,
+            quitCount: state.currentSession.quitCount + 1,
+            completed: false
+          };
+
+          const result: Partial<QuizStore> = {
+            currentSession: null,
+            currentQuestions: [],
+            sessionHistory: [...state.sessionHistory, updatedSession]
+          };
+
+          return result;
+        });
+      },
+
+      // Complete current session
       completeSession: () => {
         set((state) => {
-          if (!state.currentSession) return state
-
-          const completedSession = {
+          if (!state.currentSession) return state;
+          
+          const completedSession: StudySession = {
             ...state.currentSession,
             completed: true,
             completedAt: Date.now()
-          }
+          };
 
-          // Clear any saved queue state since session is complete
-          clearQueueState(state.currentSession.id)
-
-          return {
+          const result: Partial<QuizStore> = {
             currentSession: null,
-            sessionHistory: [...state.sessionHistory, completedSession],
             currentQuestions: [],
-            completedItems: []
-          }
-        })
+            completedItems: [],
+            sessionHistory: [...state.sessionHistory, completedSession]
+          };
+
+          return result;
+        });
       },
 
+      // Resume a previous session
       resumeSession: (sessionId) => {
-        const state = get()
-        const savedState = loadQueueState(sessionId)
-        
-        if (savedState) {
-          const session = state.sessionHistory.find(s => s.id === sessionId)
-          if (session && !session.completed) {
-            set(() => ({
-              currentSession: {
-                ...session,
-                items: savedState.queue,
-                quitCount: savedState.quitCount
-              },
-              sessionHistory: state.sessionHistory.filter(s => s.id !== sessionId),
-              completedItems: savedState.completedItems || [],
-              currentQuestions: []
-            }))
-          }
-        }
+        set((state) => {
+          const sessionIndex = state.sessionHistory.findIndex(s => s.id === sessionId);
+          if (sessionIndex === -1 || !state.sessionHistory[sessionIndex]) return state;
+
+          const session = state.sessionHistory[sessionIndex];
+          const remainingSessions = state.sessionHistory.filter(s => s.id !== sessionId);
+
+          // Ensure all required properties are set when creating a new session
+          const newSession: StudySession = {
+            id: session.id,
+            projectId: session.projectId,
+            items: [...session.items],
+            originalItems: [...session.originalItems],
+            currentIndex: 0,  // Reset index for new session
+            completed: false,  // Reset completion status
+            startedAt: session.startedAt,  // Keep original start time
+            updatedAt: Date.now(),
+            quitCount: session.quitCount || 0,
+            totalQuestions: session.totalQuestions,
+            correctAnswers: 0,  // Reset correct answers
+            settings: {
+              modules: [...session.settings.modules],
+              maxItems: session.settings.maxItems,
+              ...(session.settings.focusMode && session.settings.focusMode.length > 0 
+                ? { focusMode: [...session.settings.focusMode] } 
+                : {})
+            }
+          };
+
+          // Return the updated state with the new session
+          return {
+            currentSession: newSession,
+            currentQuestions: [],
+            sessionHistory: remainingSessions
+          };
+        });
       },
 
       // Settings actions

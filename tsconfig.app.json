@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "outDir": ".next/types",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/types"
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    "next.config.js",
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "out",
+    "build",
+    "dist",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/__tests__/**",
+    "**/__mocks__/**"
+  ]
+}

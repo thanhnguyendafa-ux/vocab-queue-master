@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     /* Base Options */
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
     "moduleResolution": "node",
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -20,23 +20,23 @@
     "declaration": false,
     "declarationMap": false,
     "importHelpers": true,
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "strictFunctionTypes": false,
-    "strictBindCallApply": false,
-    "strictPropertyInitialization": false,
-    "noImplicitThis": false,
-    "useUnknownInCatchVariables": false,
-    "alwaysStrict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "exactOptionalPropertyTypes": false,
-    "noImplicitReturns": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": false,
-    "noPropertyAccessFromIndexSignature": false,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
     "skipDefaultLibCheck": true,
     
     /* Paths */
@@ -59,20 +59,22 @@
     ]
   },
   "include": [
-    "src",
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    "next.config.js"
+    "next.config.js",
+    "src/**/*.ts",
+    "src/**/*.tsx"
   ],
   "exclude": [
     "node_modules",
     ".next",
     "out",
     "build",
-    "dist"
+    "dist",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/*.d.ts",
+    "**/__tests__/**",
+    "**/__mocks__/**"
   ],
-  "references": [
-    { "path": "./tsconfig.node.json" }
-  ]
+  // No project references for now
 }

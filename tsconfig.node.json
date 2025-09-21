@@ -2,15 +2,19 @@
   "compilerOptions": {
     "composite": true,
     "skipLibCheck": true,
-    "module": "ESNext",
+    "module": "CommonJS",
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "strict": false,
-    "noImplicitAny": false,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "types": ["node"]
   },
   "include": [
+    "next-env.d.ts",
     "vite.config.ts",
     "next.config.js",
     "**/*.ts",

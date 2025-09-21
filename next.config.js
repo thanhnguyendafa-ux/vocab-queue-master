@@ -2,38 +2,62 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  // Enable TypeScript type checking during build
+  
+  // TypeScript configuration
   typescript: {
-    // !! WARN !!
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
-    // !! WARN !!
-    ignoreBuildErrors: true,
+    // Enable type checking during build
+    ignoreBuildErrors: false,
+    // Enable type checking in development
+    tsconfigPath: './tsconfig.json',
   },
-  // Configure webpack to handle custom module resolution
+  
+  // ESLint configuration
+  eslint: {
+    // Enable ESLint during builds
+    ignoreDuringBuilds: false,
+  },
+  
+  // Webpack configuration
   webpack: (config, { isServer }) => {
-    // Important: return the modified config
+    // Add custom webpack configuration here if needed
     return config;
   },
-  // Add any environment variables here
+  
+  // Environment variables
   env: {
-    // NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    // Add environment variables here
   },
-  // Enable static exports for Vercel
+  
+  // Static export configuration
   output: 'export',
-  // Optional: Add a trailing slash to all paths
+  
+  // Trailing slash handling
   trailingSlash: true,
-  // Optional: Configure the build output directory
+  
+  // Build output directory
   distDir: '.next',
-  // Enable React 18 concurrent features
+  
+  // React configuration
   react: {
     useSuspense: true,
     runtime: 'automatic',
   },
-  // Configure images
+  
+  // Image optimization
   images: {
-    unoptimized: true, // Disable Image Optimization API
+    unoptimized: true, // Required for static exports
     domains: [], // Add any image domains here
+  },
+  
+  // Enable source maps in production
+  productionBrowserSourceMaps: true,
+  
+  // Enable React DevTools in production
+  reactStrictMode: true,
+  
+  // Enable webpack 5
+  future: {
+    webpack5: true,
   },
 };
 
