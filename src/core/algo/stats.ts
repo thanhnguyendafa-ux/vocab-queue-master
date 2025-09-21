@@ -157,7 +157,7 @@ function matchesFilter(item: VocabItem, filter: FocusFilter, settings: Settings)
 
   switch (filter.type) {
     case 'overdue':
-      return days >= (filter.threshold || settings.overdueDays)
+      return isFinite(days) && days >= (filter.threshold || settings.overdueDays)
 
     case 'low-sr':
       return successRate <= (filter.threshold || settings.srMin)
@@ -194,17 +194,17 @@ export function buildFocusQueue(
     const urgencyA = calculateUrgency(a, {
       halfLifeDays: settings.halfLifeDays,
       guessBaseline: settings.guessBaseline,
-      timeWeight: settings.timeWeight,
-      srWeight: settings.srWeight,
-      decayWeight: settings.decayWeight
+      timeWeight: settings.focusThresholds.w_t,
+      srWeight: settings.focusThresholds.w_s,
+      decayWeight: settings.focusThresholds.w_d
     })
 
     const urgencyB = calculateUrgency(b, {
       halfLifeDays: settings.halfLifeDays,
       guessBaseline: settings.guessBaseline,
-      timeWeight: settings.timeWeight,
-      srWeight: settings.srWeight,
-      decayWeight: settings.decayWeight
+      timeWeight: settings.focusThresholds.w_t,
+      srWeight: settings.focusThresholds.w_s,
+      decayWeight: settings.focusThresholds.w_d
     })
 
     return urgencyB - urgencyA
@@ -222,45 +222,56 @@ export function getItemStatistics(item: VocabItem, settings: Settings): ItemStat
   const days = daysSince(item.lastReviewedAt)
   const totalAttempts = item.passed1 + item.passed2 + item.failed
 
+  // Calculate trend (simplified - could be more sophisticated)
+  const trend = totalAttempts > 0
+    ? (item.passed1 + item.passed2) / totalAttempts
+    : 0.5 // neutral trend for new items
+
   return {
     mastery,
     successRate,
+    srSmooth: successRate, // Add srSmooth for compatibility
+    srDecay: srDecay(successRate, days, settings.halfLifeDays, settings.guessBaseline), // Add srDecay
     decay: mastery, // Simplified - in full implementation, this would be separate
     urgency: calculateUrgency(item, {
       halfLifeDays: settings.halfLifeDays,
       guessBaseline: settings.guessBaseline,
-      timeWeight: settings.timeWeight,
-      srWeight: settings.srWeight,
-      decayWeight: settings.decayWeight
+      timeWeight: settings.focusThresholds.w_t,
+      srWeight: settings.focusThresholds.w_s,
+      decayWeight: settings.focusThresholds.w_d
     }),
     totalAttempts,
     daysSinceLastReview: days,
-    isOverdue: days >= settings.overdueDays
+    daysSinceReview: days, // Add for compatibility
+    isOverdue: days >= settings.overdueDays,
+    masteryLevel: getMasteryLevel(mastery), // Add masteryLevel
+    trend // Add trend property
   }
 }
 
 /**
- * Get filter sets for different study scenarios
+ * Validate core algorithm correctness
+ * This function checks that all algorithms are working correctly
  */
-export function getFilterSets(): Record<string, FocusFilter[]> {
-  return {
-    'overdue-review': [
-      { type: 'overdue', enabled: true, threshold: 7 }
-    ],
-    'difficult-items': [
-      { type: 'low-sr', enabled: true, threshold: 0.6 },
-      { type: 'high-decay', enabled: true, threshold: 0.6 }
-    ],
-    'new-items': [
-      { type: 'new', enabled: true }
-    ],
-    'failed-items': [
-      { type: 'failed', enabled: true }
-    ],
-    'comprehensive': [
-      { type: 'overdue', enabled: true, threshold: 7 },
-      { type: 'low-sr', enabled: true, threshold: 0.6 },
-      { type: 'failed', enabled: true }
-    ]
+export function validateAlgorithms(): boolean {
+  // Test srSmooth function
+  const smoothTest1 = srSmooth({ passed1: 0, passed2: 0, failed: 0 })
+  const smoothTest2 = srSmooth({ passed1: 1, passed2: 0, failed: 0 })
+  const smoothTest3 = srSmooth({ passed1: 0, passed2: 0, failed: 1 })
+
+  if (smoothTest1 !== 0.5 || smoothTest2 !== (2/3) || smoothTest3 !== (1/3)) {
+    return false
   }
+
+  // Test decayFactor function
+  const decayTest1 = decayFactor(0, 7)
+  const decayTest2 = decayFactor(7, 7)
+  const decayTest3 = decayFactor(14, 7)
+
+  if (decayTest1 !== 1 || decayTest2 !== 0.5 || decayTest3 !== 0.25) {
+    return false
+  }
+
+  // Test basic functionality
+  return true
 }

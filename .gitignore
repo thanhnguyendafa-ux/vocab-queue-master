@@ -34,7 +34,6 @@ dist-ssr
 coverage
 
 # Build outputs
-build
-out
-
-.vercel
+-build
++/build  # Only ignore the root /build directory
+-out

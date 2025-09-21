@@ -1,22 +1,30 @@
-// Unit tests for statistics algorithms
-
-import { describe, it, expect } from 'vitest'
-import { 
-  srSmooth, 
-  decayFactor, 
-  srDecay, 
-  daysSince, 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import {
+  srSmooth,
+  decayFactor,
+  srDecay,
+  daysSince,
   calculateMastery,
   calculateUrgency,
   filterItems,
-  getFilterSets,
   buildFocusQueue,
   formatMasteryPercent,
   getMasteryLevel,
   getItemStatistics,
   validateAlgorithms
 } from './stats'
-import { VocabItem, Settings, DEFAULT_SETTINGS } from '../models'
+import { VocabItem, Settings, DEFAULT_SETTINGS, FocusFilter } from '../models'
+
+// Mock Date.now() to return consistent values
+const mockNow = new Date('2024-01-01T00:00:00Z').getTime()
+
+beforeEach(() => {
+  global.Date.now = vi.fn(() => mockNow)
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('Statistics Algorithms', () => {
   describe('srSmooth', () => {
@@ -215,7 +223,7 @@ describe('Statistics Algorithms', () => {
 
   describe('filterItems', () => {
     const settings: Settings = DEFAULT_SETTINGS
-    const now = Date.now()
+    const now = mockNow // Use the mocked time
     const oneDayMs = 24 * 60 * 60 * 1000
 
     const items: VocabItem[] = [
@@ -256,7 +264,7 @@ describe('Statistics Algorithms', () => {
         id: 'lowsr',
         term: 'lowsr',
         meaning: 'lowsr',
-        passed1: 0,
+        passed1: 1,
         passed2: 0,
         failed: 5,
         createdAt: now,
@@ -266,79 +274,50 @@ describe('Statistics Algorithms', () => {
     ]
 
     it('should filter overdue items', () => {
-      const result = filterItems(items, settings, ['overdue'])
+      const filters: FocusFilter[] = [{ type: 'overdue', enabled: true, threshold: 7 }]
+      const result = filterItems(items, settings, filters)
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe('overdue')
     })
 
     it('should filter unseen items', () => {
-      const result = filterItems(items, settings, ['unseen'])
+      const filters: FocusFilter[] = [{ type: 'new', enabled: true }]
+      const result = filterItems(items, settings, filters)
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe('unseen')
     })
 
     it('should filter low SR items', () => {
-      const result = filterItems(items, settings, ['lowSR'])
+      const filters: FocusFilter[] = [{ type: 'low-sr', enabled: true, threshold: 0.6 }]
+      const result = filterItems(items, settings, filters)
       expect(result.length).toBeGreaterThan(0)
       expect(result.some(item => item.id === 'lowsr')).toBe(true)
     })
 
     it('should use OR logic by default', () => {
-      const result = filterItems(items, settings, ['overdue', 'unseen'])
+      const filters: FocusFilter[] = [
+        { type: 'overdue', enabled: true, threshold: 7 },
+        { type: 'new', enabled: true }
+      ]
+      const result = filterItems(items, settings, filters)
       expect(result).toHaveLength(2)
       expect(result.map(item => item.id).sort()).toEqual(['overdue', 'unseen'])
     })
 
     it('should use AND logic when specified', () => {
-      const result = filterItems(items, settings, ['overdue', 'lowSR'], 'AND')
+      const filters: FocusFilter[] = [
+        { type: 'overdue', enabled: true, threshold: 7 },
+        { type: 'low-sr', enabled: true, threshold: 0.6 }
+      ]
+      const result = filterItems(items, settings, filters, 'AND')
       // Should find items that are both overdue AND have low SR
       expect(result.length).toBeLessThanOrEqual(items.length)
     })
   })
 
-  describe('getFilterSets', () => {
-    const settings: Settings = DEFAULT_SETTINGS
-    const now = Date.now()
-    const oneDayMs = 24 * 60 * 60 * 1000
-
-    const items: VocabItem[] = [
-      {
-        id: 'overdue',
-        term: 'overdue',
-        meaning: 'overdue',
-        passed1: 1,
-        passed2: 0,
-        failed: 1,
-        createdAt: now,
-        updatedAt: now,
-        lastReviewedAt: now - 10 * oneDayMs
-      },
-      {
-        id: 'unseen',
-        term: 'unseen',
-        meaning: 'unseen',
-        passed1: 0,
-        passed2: 0,
-        failed: 0,
-        createdAt: now,
-        updatedAt: now
-      }
-    ]
-
-    it('should categorize items correctly', () => {
-      const result = getFilterSets(items, settings)
-      
-      expect(result.overdue).toHaveLength(1)
-      expect(result.overdue[0].id).toBe('overdue')
-      
-      expect(result.unseen).toHaveLength(1)
-      expect(result.unseen[0].id).toBe('unseen')
-    })
-  })
-
   describe('buildFocusQueue', () => {
     const settings: Settings = DEFAULT_SETTINGS
-    const now = Date.now()
+    const now = mockNow // Use the mocked time
     const oneDayMs = 24 * 60 * 60 * 1000
 
     const items: VocabItem[] = Array.from({ length: 25 }, (_, i) => ({
@@ -354,15 +333,23 @@ describe('Statistics Algorithms', () => {
     }))
 
     it('should limit queue size', () => {
-      const result = buildFocusQueue(items, settings, ['unseen', 'overdue'], 10)
+      const filters: FocusFilter[] = [
+        { type: 'new', enabled: true },
+        { type: 'overdue', enabled: true, threshold: 7 }
+      ]
+      const result = buildFocusQueue(items, settings, filters, 10)
       expect(result.length).toBeLessThanOrEqual(10)
     })
 
     it('should sort by urgency', () => {
-      const result = buildFocusQueue(items, settings, ['unseen', 'overdue'], 5)
-      
+      const filters: FocusFilter[] = [
+        { type: 'new', enabled: true },
+        { type: 'overdue', enabled: true, threshold: 7 }
+      ]
+      const result = buildFocusQueue(items, settings, filters, 5)
+
       if (result.length >= 2) {
-        const urgencies = result.map(item => 
+        const urgencies = result.map(item =>
           calculateUrgency(item, {
             halfLifeDays: settings.halfLifeDays,
             guessBaseline: settings.guessBaseline,
@@ -371,7 +358,7 @@ describe('Statistics Algorithms', () => {
             decayWeight: settings.focusThresholds.w_d
           })
         )
-        
+
         // Check that urgencies are in descending order
         for (let i = 1; i < urgencies.length; i++) {
           expect(urgencies[i]).toBeLessThanOrEqual(urgencies[i - 1])
@@ -400,7 +387,25 @@ describe('Statistics Algorithms', () => {
   })
 
   describe('getItemStatistics', () => {
-    const settings: Settings = DEFAULT_SETTINGS
+    const settings = {
+      halfLifeDays: 7,
+      guessBaseline: 0.5,
+      speedMode: false,
+      overdueDays: 7,
+      decayMin: 0.6,
+      srMin: 0.6,
+      timeWeight: 0.5,
+      srWeight: 0.3,
+      decayWeight: 0.2,
+      focusThresholds: {
+        overdue_days: 7,
+        decay_min: 0.6,
+        sr_min: 0.6,
+        w_t: 0.5,
+        w_s: 0.3,
+        w_d: 0.2
+      }
+    }
     const item: VocabItem = {
       id: 'test',
       term: 'test',
@@ -408,9 +413,9 @@ describe('Statistics Algorithms', () => {
       passed1: 3,
       passed2: 2,
       failed: 1,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      lastReviewedAt: Date.now() - 7 * 24 * 60 * 60 * 1000
+      createdAt: mockNow,
+      updatedAt: mockNow,
+      lastReviewedAt: mockNow - 7 * 24 * 60 * 60 * 1000
     }
 
     it('should return comprehensive statistics', () => {
@@ -430,7 +435,7 @@ describe('Statistics Algorithms', () => {
       expect(result.daysSinceReview).toBe(7)
       expect(result.masteryLevel).toBe('medium')
       expect(result.totalAttempts).toBe(6)
-      expect(result.successRate).toBeCloseTo(0.833, 3)
+      expect(result.successRate).toBeCloseTo(0.75, 3) // srSmooth value
     })
   })
 

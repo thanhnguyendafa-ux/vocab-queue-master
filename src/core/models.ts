@@ -134,11 +134,16 @@ export interface FocusFilter {
 export interface ItemStats {
   mastery: number
   successRate: number
+  srSmooth: number      // Add for compatibility
+  srDecay: number       // Add for compatibility
   decay: number
   urgency: number
   totalAttempts: number
   daysSinceLastReview: number
+  daysSinceReview: number  // Add for compatibility
   isOverdue: boolean
+  masteryLevel: 'low' | 'medium' | 'high'  // Add for compatibility
+  trend: number  // Add trend property
 }
 
 export interface SessionStats {

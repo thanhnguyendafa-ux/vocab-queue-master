@@ -94,3 +94,23 @@
   70% { transform: scale(0.9); }
   100% { transform: scale(1); opacity: 1; }
 }
+/* In src/index.css */
+.mastery-high {
+  @apply bg-emerald-100 border-emerald-300 text-emerald-800;
+}
+
+.mastery-medium {
+  @apply bg-amber-100 border-amber-300 text-amber-800;
+}
+
+.mastery-low {
+  @apply bg-rose-100 border-rose-300 text-rose-800;
+}
+
+.quiz-card.correct {
+  @apply bg-emerald-50 border-emerald-200;
+}
+
+.quiz-card.incorrect {
+  @apply bg-rose-50 border-rose-200;
+}
