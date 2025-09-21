@@ -37,3 +37,4 @@ coverage
 -build
 +/build  # Only ignore the root /build directory
 -out
+.vercel

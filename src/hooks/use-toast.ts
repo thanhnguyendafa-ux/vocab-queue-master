@@ -1,37 +1,37 @@
-'use client';
+'use client'
 
-import * as React from 'react';
+import * as React from 'react'
 
 type Toast = {
-  title: string;
-  description?: string;
-  variant?: 'default' | 'destructive';
-};
+  title: string
+  description?: string
+  variant?: 'default' | 'destructive'
+}
 
 type ToastContextType = {
-  toast: (toast: Toast) => string;
-  dismissToast: (id: string) => void;
-};
+  toast: (toast: Toast) => string
+  dismissToast: (id: string) => void
+}
 
-const ToastContext = React.createContext<ToastContextType | undefined>(undefined);
+const ToastContext = React.createContext<ToastContextType | undefined>(undefined)
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = React.useState<Array<Toast & { id: string }>>([]);
+  const [toasts, setToasts] = React.useState<Array<Toast & { id: string }>>([])
 
   const toast = React.useCallback(({ title, description, variant }: Toast) => {
-    const id = Math.random().toString(36).substring(2, 11);
+    const id = Math.random().toString(36).substring(2, 11)
     setToasts((currentToasts) => [
       ...currentToasts,
-      { id, title, description, variant },
-    ]);
-    return id;
-  }, []);
+      { id, title, description, variant }
+    ])
+    return id
+  }, [])
 
   const dismissToast = React.useCallback((id: string) => {
     setToasts((currentToasts) =>
       currentToasts.filter((toast) => toast.id !== id)
-    );
-  }, []);
+    )
+  }, [])
 
   return (
     <ToastContext.Provider value={{ toast, dismissToast }}>
@@ -54,19 +54,19 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               onClick={() => dismissToast(id)}
               className="ml-4 text-lg font-bold opacity-70 hover:opacity-100"
             >
-              &times;
+              ×
             </button>
           </div>
         ))}
       </div>
     </ToastContext.Provider>
-  );
+  )
 }
 
 export function useToast() {
-  const context = React.useContext(ToastContext);
+  const context = React.useContext(ToastContext)
   if (context === undefined) {
-    throw new Error('useToast must be used within a ToastProvider');
+    throw new Error('useToast must be used within a ToastProvider')
   }
-  return context;
+  return context
 }
