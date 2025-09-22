@@ -1,13 +1,13 @@
-'use client';
+'use client'
 
-import * as React from 'react';
-import * as ToastPrimitives from '@radix-ui/react-toast';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { X } from 'lucide-react';
+import * as React from 'react'
+import * as ToastPrimitives from '@radix-ui/react-toast'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { X } from 'lucide-react'
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'
 
-const ToastProvider = ToastPrimitives.Provider;
+const ToastProvider = ToastPrimitives.Provider
 
 const ToastViewport = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Viewport>,
@@ -21,8 +21,8 @@ const ToastViewport = React.forwardRef<
     )}
     {...props}
   />
-));
-ToastViewport.displayName = 'ToastViewport';
+))
+ToastViewport.displayName = 'ToastViewport'
 
 const toastVariants = cva(
   'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
@@ -38,7 +38,7 @@ const toastVariants = cva(
       variant: 'default',
     },
   }
-);
+)
 
 const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
@@ -51,9 +51,9 @@ const Toast = React.forwardRef<
       className={cn(toastVariants({ variant }), className)}
       {...props}
     />
-  );
-});
-Toast.displayName = 'Toast';
+  )
+})
+Toast.displayName = 'Toast'
 
 const ToastAction = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Action>,
@@ -67,8 +67,8 @@ const ToastAction = React.forwardRef<
     )}
     {...props}
   />
-));
-ToastAction.displayName = 'ToastAction';
+))
+ToastAction.displayName = 'ToastAction'
 
 const ToastClose = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Close>,
@@ -85,8 +85,8 @@ const ToastClose = React.forwardRef<
   >
     <X className="h-4 w-4" />
   </ToastPrimitives.Close>
-));
-ToastClose.displayName = 'ToastClose';
+))
+ToastClose.displayName = 'ToastClose'
 
 const ToastTitle = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Title>,
@@ -97,8 +97,8 @@ const ToastTitle = React.forwardRef<
     className={cn('text-sm font-semibold', className)}
     {...props}
   />
-));
-ToastTitle.displayName = 'ToastTitle';
+))
+ToastTitle.displayName = 'ToastTitle'
 
 const ToastDescription = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Description>,
@@ -109,15 +109,62 @@ const ToastDescription = React.forwardRef<
     className={cn('text-sm opacity-90', className)}
     {...props}
   />
-));
-ToastDescription.displayName = 'ToastDescription';
+))
+ToastDescription.displayName = 'ToastDescription'
 
-type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>;
-type ToastActionElement = React.ReactElement<typeof ToastAction>;
+type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
+type ToastActionElement = React.ReactElement<typeof ToastAction>
+
+// Toast hook for managing toast state
+function useToast() {
+  const [toasts, setToasts] = React.useState<
+    (Omit<ToastProps, 'id'> & {
+      id: string
+      title?: React.ReactNode
+      description?: React.ReactNode
+      action?: ToastActionElement
+    })[]
+  >([])
+
+  const toast = React.useCallback(
+    (props: Omit<ToastProps, 'id'> & {
+      title?: React.ReactNode
+      description?: React.ReactNode
+      action?: ToastActionElement
+    }) => {
+      const id = Math.random().toString(36).substr(2, 9)
+      setToasts((prevToasts) => [...prevToasts, { ...props, id }])
+
+      return {
+        id,
+        dismiss: () => setToasts((prevToasts) => prevToasts.filter((t) => t.id !== id)),
+      }
+    },
+    []
+  )
+
+  const dismiss = React.useCallback(
+    (toastId?: string) => {
+      if (toastId) {
+        setToasts((prevToasts) => prevToasts.filter((t) => t.id !== toastId))
+      } else {
+        setToasts([])
+      }
+    },
+    []
+  )
+
+  return {
+    toast,
+    toasts,
+    dismiss,
+  }
+}
 
 export {
   type ToastProps,
   type ToastActionElement,
+  useToast,
   ToastProvider,
   ToastViewport,
   Toast,
@@ -125,4 +172,4 @@ export {
   ToastDescription,
   ToastClose,
   ToastAction,
-};
+}
